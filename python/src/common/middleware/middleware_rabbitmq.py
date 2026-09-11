@@ -11,6 +11,8 @@ DISCONNECTION_ERRORS = (
     pika.exceptions.StreamLostError,
 )
 
+DISCONNECTION_MSG = "Error connecting to RabbitMQ: {}"
+
 class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
 
     def __init__(self, host, queue_name):
@@ -21,19 +23,22 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
             self.queue_name = queue_name
             self.is_consuming = False
         except DISCONNECTION_ERRORS as e:
-            raise MessageMiddlewareDisconnectedError(f"Error connecting to RabbitMQ: {str(e)}") from e
+            raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
 
     def start_consuming(self, on_message_callback):
-        def _internal_callback(ch, method, properties, body):
-            def ack():
-                ch.basic_ack(delivery_tag=method.delivery_tag)
-            def nack():
-                ch.basic_nack(delivery_tag=method.delivery_tag)
-            on_message_callback(body, ack, nack)
+        try: 
+            def _internal_callback(ch, method, properties, body):
+                def ack():
+                    ch.basic_ack(delivery_tag=method.delivery_tag)
+                def nack():
+                    ch.basic_nack(delivery_tag=method.delivery_tag)
+                on_message_callback(body, ack, nack)
 
-        self.channel.basic_consume(queue=self.queue_name, on_message_callback=_internal_callback, auto_ack=False)
-        self.is_consuming = True
-        self.channel.start_consuming()
+            self.channel.basic_consume(queue=self.queue_name, on_message_callback=_internal_callback, auto_ack=False)
+            self.is_consuming = True
+            self.channel.start_consuming()
+        except DISCONNECTION_ERRORS as e:
+            raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
 
     def stop_consuming(self):
         if self.is_consuming:
@@ -60,23 +65,26 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
             self.exchange_name = exchange_name
             self.is_consuming = False
         except DISCONNECTION_ERRORS as e:
-            raise MessageMiddlewareDisconnectedError(f"Error connecting to RabbitMQ: {str(e)}") from e
+            raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
 
     def start_consuming(self, on_message_callback):
-        def _internal_callback(ch, method, properties, body):
-            def ack():
-                ch.basic_ack(delivery_tag=method.delivery_tag)
-            def nack():
-                ch.basic_nack(delivery_tag=method.delivery_tag)
-            on_message_callback(body, ack, nack)
+        try:
+            def _internal_callback(ch, method, properties, body):
+                def ack():
+                    ch.basic_ack(delivery_tag=method.delivery_tag)
+                def nack():
+                    ch.basic_nack(delivery_tag=method.delivery_tag)
+                on_message_callback(body, ack, nack)
 
-        result = self.channel.queue_declare(queue='', exclusive=True)
-        queue_name = result.method.queue
-        for routing_key in self.routing_keys:
-            self.channel.queue_bind(exchange=self.exchange_name, queue=queue_name, routing_key=routing_key)
-        self.channel.basic_consume(queue=queue_name, on_message_callback=_internal_callback, auto_ack=False)
-        self.is_consuming = True
-        self.channel.start_consuming()
+            result = self.channel.queue_declare(queue='', exclusive=True)
+            queue_name = result.method.queue
+            for routing_key in self.routing_keys:
+                self.channel.queue_bind(exchange=self.exchange_name, queue=queue_name, routing_key=routing_key)
+            self.channel.basic_consume(queue=queue_name, on_message_callback=_internal_callback, auto_ack=False)
+            self.is_consuming = True
+            self.channel.start_consuming()
+        except DISCONNECTION_ERRORS as e:
+            raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
 
     def stop_consuming(self):
         if self.is_consuming:
