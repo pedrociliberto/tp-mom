@@ -50,7 +50,10 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
 
 
     def send(self, message):
-        self.channel.basic_publish(exchange='', routing_key=self.queue_name, body=message)
+        try:
+            self.channel.basic_publish(exchange='', routing_key=self.queue_name, body=message)
+        except DISCONNECTION_ERRORS as e:
+            raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
 
     def close(self):
         if self.channel.is_open:
@@ -99,8 +102,11 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
             raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
 
     def send(self, message):
-        for routing_key in self.routing_keys:
-            self.channel.basic_publish(exchange=self.exchange_name, routing_key=routing_key, body=message)
+        try:
+            for routing_key in self.routing_keys:
+                self.channel.basic_publish(exchange=self.exchange_name, routing_key=routing_key, body=message)
+        except DISCONNECTION_ERRORS as e:
+            raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
 
     def close(self):
         if self.channel.is_open:
