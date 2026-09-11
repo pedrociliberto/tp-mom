@@ -41,9 +41,13 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
             raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
 
     def stop_consuming(self):
-        if self.is_consuming:
-            self.channel.stop_consuming()
-            self.is_consuming = False
+        try:
+            if self.is_consuming:
+                self.channel.stop_consuming()
+                self.is_consuming = False
+        except DISCONNECTION_ERRORS as e:
+            raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
+
 
     def send(self, message):
         self.channel.basic_publish(exchange='', routing_key=self.queue_name, body=message)
@@ -87,9 +91,12 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
             raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
 
     def stop_consuming(self):
-        if self.is_consuming:
-            self.channel.stop_consuming()
-            self.is_consuming = False
+        try:
+            if self.is_consuming:
+                self.channel.stop_consuming()
+                self.is_consuming = False
+        except DISCONNECTION_ERRORS as e:
+            raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
 
     def send(self, message):
         for routing_key in self.routing_keys:
