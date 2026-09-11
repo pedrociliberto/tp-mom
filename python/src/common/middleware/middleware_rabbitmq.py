@@ -1,16 +1,27 @@
 import pika
 import random
 import string
-from .middleware import MessageMiddlewareQueue, MessageMiddlewareExchange
+from .middleware import MessageMiddlewareQueue, MessageMiddlewareExchange, MessageMiddlewareDisconnectedError
+
+DISCONNECTION_ERRORS = (
+    pika.exceptions.AMQPConnectionError,
+    pika.exceptions.ChannelClosedByBroker,
+    pika.exceptions.ConnectionClosed,
+    pika.exceptions.ConnectionClosedByBroker,
+    pika.exceptions.StreamLostError,
+)
 
 class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
 
     def __init__(self, host, queue_name):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=host))
-        self.channel = self.connection.channel()
-        self.channel.queue_declare(queue=queue_name, durable=True)
-        self.queue_name = queue_name
-        self.is_consuming = False
+        try:
+            self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=host))
+            self.channel = self.connection.channel()
+            self.channel.queue_declare(queue=queue_name, durable=True)
+            self.queue_name = queue_name
+            self.is_consuming = False
+        except DISCONNECTION_ERRORS as e:
+            raise MessageMiddlewareDisconnectedError(f"Error connecting to RabbitMQ: {str(e)}") from e
 
     def start_consuming(self, on_message_callback):
         def _internal_callback(ch, method, properties, body):
@@ -41,12 +52,15 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
 class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
     
     def __init__(self, host, exchange_name, routing_keys):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=host))
-        self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange=exchange_name, exchange_type='direct', durable=True)
-        self.routing_keys = routing_keys
-        self.exchange_name = exchange_name
-        self.is_consuming = False
+        try:
+            self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=host))
+            self.channel = self.connection.channel()
+            self.channel.exchange_declare(exchange=exchange_name, exchange_type='direct', durable=True)
+            self.routing_keys = routing_keys
+            self.exchange_name = exchange_name
+            self.is_consuming = False
+        except DISCONNECTION_ERRORS as e:
+            raise MessageMiddlewareDisconnectedError(f"Error connecting to RabbitMQ: {str(e)}") from e
 
     def start_consuming(self, on_message_callback):
         def _internal_callback(ch, method, properties, body):
