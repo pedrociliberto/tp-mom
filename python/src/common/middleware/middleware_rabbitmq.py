@@ -1,7 +1,7 @@
 import pika
 import random
 import string
-from .middleware import MessageMiddlewareQueue, MessageMiddlewareExchange, MessageMiddlewareDisconnectedError
+from .middleware import MessageMiddlewareQueue, MessageMiddlewareExchange, MessageMiddlewareDisconnectedError, MessageMiddlewareMessageError
 
 DISCONNECTION_ERRORS = (
     pika.exceptions.AMQPConnectionError,
@@ -24,6 +24,8 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
             self.is_consuming = False
         except DISCONNECTION_ERRORS as e:
             raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
+        except Exception as e:
+            raise MessageMiddlewareMessageError(e) from e
 
     def start_consuming(self, on_message_callback):
         try: 
@@ -39,6 +41,8 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
             self.channel.start_consuming()
         except DISCONNECTION_ERRORS as e:
             raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
+        except Exception as e:
+            raise MessageMiddlewareMessageError(e) from e
 
     def stop_consuming(self):
         try:
@@ -47,13 +51,16 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
                 self.is_consuming = False
         except DISCONNECTION_ERRORS as e:
             raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
-
+        except Exception as e:
+            raise MessageMiddlewareMessageError(e) from e
 
     def send(self, message):
         try:
             self.channel.basic_publish(exchange='', routing_key=self.queue_name, body=message)
         except DISCONNECTION_ERRORS as e:
             raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
+        except Exception as e:
+            raise MessageMiddlewareMessageError(e) from e
 
     def close(self):
         if self.channel.is_open:
@@ -73,6 +80,8 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
             self.is_consuming = False
         except DISCONNECTION_ERRORS as e:
             raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
+        except Exception as e:
+            raise MessageMiddlewareMessageError(e) from e
 
     def start_consuming(self, on_message_callback):
         try:
@@ -92,6 +101,8 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
             self.channel.start_consuming()
         except DISCONNECTION_ERRORS as e:
             raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
+        except Exception as e:
+            raise MessageMiddlewareMessageError(e) from e
 
     def stop_consuming(self):
         try:
@@ -100,6 +111,8 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
                 self.is_consuming = False
         except DISCONNECTION_ERRORS as e:
             raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
+        except Exception as e:
+            raise MessageMiddlewareMessageError(e) from e
 
     def send(self, message):
         try:
@@ -107,6 +120,8 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
                 self.channel.basic_publish(exchange=self.exchange_name, routing_key=routing_key, body=message)
         except DISCONNECTION_ERRORS as e:
             raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
+        except Exception as e:
+            raise MessageMiddlewareMessageError(e) from e
 
     def close(self):
         if self.channel.is_open:
