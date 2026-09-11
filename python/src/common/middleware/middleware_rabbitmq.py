@@ -10,6 +10,7 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
         self.channel = self.connection.channel()
         self.channel.queue_declare(queue=queue_name, durable=True)
         self.queue_name = queue_name
+        self.is_consuming = False
 
     def start_consuming(self, on_message_callback):
         def _internal_callback(ch, method, properties, body):
@@ -20,10 +21,13 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
             on_message_callback(body, ack, nack)
 
         self.channel.basic_consume(queue=self.queue_name, on_message_callback=_internal_callback, auto_ack=False)
+        self.is_consuming = True
         self.channel.start_consuming()
 
     def stop_consuming(self):
-        self.channel.stop_consuming()
+        if self.is_consuming:
+            self.channel.stop_consuming()
+            self.is_consuming = False
 
     def send(self, message):
         self.channel.basic_publish(exchange='', routing_key=self.queue_name, body=message)
@@ -42,6 +46,7 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
         self.channel.exchange_declare(exchange=exchange_name, exchange_type='direct', durable=True)
         self.routing_keys = routing_keys
         self.exchange_name = exchange_name
+        self.is_consuming = False
 
     def start_consuming(self, on_message_callback):
         def _internal_callback(ch, method, properties, body):
@@ -56,10 +61,13 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
         for routing_key in self.routing_keys:
             self.channel.queue_bind(exchange=self.exchange_name, queue=queue_name, routing_key=routing_key)
         self.channel.basic_consume(queue=queue_name, on_message_callback=_internal_callback, auto_ack=False)
+        self.is_consuming = True
         self.channel.start_consuming()
 
     def stop_consuming(self):
-        self.channel.stop_consuming()
+        if self.is_consuming:
+            self.channel.stop_consuming()
+            self.is_consuming = False
 
     def send(self, message):
         for routing_key in self.routing_keys:
