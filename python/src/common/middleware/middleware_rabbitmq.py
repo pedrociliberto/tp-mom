@@ -17,6 +17,7 @@ DISCONNECTION_ERRORS = (
     pika.exceptions.StreamLostError,
 )
 DISCONNECTION_MSG = "Error connecting to RabbitMQ: {}"
+ALREADY_CONSUMING_MSG = "Already consuming messages. Stop consuming before starting again."
 
 class _MessageMiddlewareRabbitMQBase:
     def __init__(self, host):
@@ -39,6 +40,8 @@ class _MessageMiddlewareRabbitMQBase:
         return _internal_callback
 
     def _consume(self, queue_name, on_message_callback):
+        if self.is_consuming:
+            raise MessageMiddlewareMessageError(ALREADY_CONSUMING_MSG)
         try:
             callback = self._wrap_callback(on_message_callback)
             self.channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=False)
