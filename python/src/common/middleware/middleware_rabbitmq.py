@@ -1,7 +1,13 @@
 import pika
 import random
 import string
-from .middleware import MessageMiddlewareQueue, MessageMiddlewareExchange, MessageMiddlewareDisconnectedError, MessageMiddlewareMessageError
+from .middleware import (
+    MessageMiddlewareQueue,
+    MessageMiddlewareExchange,
+    MessageMiddlewareDisconnectedError,
+    MessageMiddlewareMessageError,
+    MessageMiddlewareCloseError
+)
 
 DISCONNECTION_ERRORS = (
     pika.exceptions.AMQPConnectionError,
@@ -10,9 +16,7 @@ DISCONNECTION_ERRORS = (
     pika.exceptions.ConnectionClosedByBroker,
     pika.exceptions.StreamLostError,
 )
-
 DISCONNECTION_MSG = "Error connecting to RabbitMQ: {}"
-
 class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
 
     def __init__(self, host, queue_name):
@@ -63,10 +67,13 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
             raise MessageMiddlewareMessageError(e) from e
 
     def close(self):
-        if self.channel.is_open:
-            self.channel.close()
-        if self.connection.is_open:
-            self.connection.close()
+        try:
+            if hasattr(self, 'channel') and self.channel and self.channel.is_open:
+                self.channel.close()
+            if hasattr(self, 'connection') and self.connection and self.connection.is_open:
+                self.connection.close()
+        except Exception as e:
+            raise MessageMiddlewareCloseError(e) from e
     
 class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
     
@@ -124,7 +131,10 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
             raise MessageMiddlewareMessageError(e) from e
 
     def close(self):
-        if self.channel.is_open:
-            self.channel.close()
-        if self.connection.is_open:
-            self.connection.close()
+        try:
+            if hasattr(self, 'channel') and self.channel and self.channel.is_open:
+                self.channel.close()
+            if hasattr(self, 'connection') and self.connection and self.connection.is_open:
+                self.connection.close()
+        except Exception as e:
+            raise MessageMiddlewareCloseError(e) from e
