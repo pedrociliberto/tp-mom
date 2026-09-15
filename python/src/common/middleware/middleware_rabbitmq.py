@@ -47,6 +47,8 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
             raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
         except Exception as e:
             raise MessageMiddlewareMessageError(e) from e
+        finally:
+            self.is_consuming = False
 
     def stop_consuming(self):
         try:
@@ -110,6 +112,8 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
             raise MessageMiddlewareDisconnectedError(DISCONNECTION_MSG.format(str(e))) from e
         except Exception as e:
             raise MessageMiddlewareMessageError(e) from e
+        finally:
+            self.is_consuming = False
 
     def stop_consuming(self):
         try:
